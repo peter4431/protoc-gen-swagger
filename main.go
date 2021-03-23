@@ -25,7 +25,7 @@ var (
 	allowMerge                 = flag.Bool("allow_merge", false, "if set, generation one swagger file out of multiple protos")
 	allowSave                  = flag.Bool("allow_save", false, "if set, save req.bin for debug")
 	yapiUrl                    = flag.String("yapi_url", "", "yapi 地址")
-	yapiSchema                 = flag.String("yapi_schema", "", "yapi 地址")
+	yapiSchema                 = flag.String("yapi_schema", "https", "yapi schema")
 	yapiToken                  = flag.String("yapi_token", "", "yapi 项目 token")
 	yapiMerge                  = flag.String("yapi_merge", "", "yapi merge [normal]-新增不覆盖 [good]-智能合并 [merge]-完全覆盖")
 	wrapCode                   = flag.Bool("wrap_code", false, "if set, generation one swagger file out of multiple protos")
