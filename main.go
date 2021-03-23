@@ -3,6 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/url"
 	"os"
 	"strings"
 
@@ -11,7 +14,7 @@ import (
 	plugin "github.com/golang/protobuf/protoc-gen-go/plugin"
 	"github.com/grpc-ecosystem/grpc-gateway/codegenerator"
 	"github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway/descriptor"
-	"github.com/scholar-ink/protoc-gen-swagger/genswagger"
+	"protoc-gen-swagger/genswagger"
 )
 
 var (
@@ -20,6 +23,12 @@ var (
 	allowDeleteBody            = flag.Bool("allow_delete_body", false, "unless set, HTTP DELETE methods may not have a body")
 	grpcAPIConfiguration       = flag.String("grpc_api_configuration", "", "path to gRPC API Configuration in YAML format")
 	allowMerge                 = flag.Bool("allow_merge", false, "if set, generation one swagger file out of multiple protos")
+	allowSave                  = flag.Bool("allow_save", false, "if set, save req.bin for debug")
+	yapiUrl                    = flag.String("yapi_url", "", "yapi 地址")
+	yapiSchema                 = flag.String("yapi_schema", "", "yapi 地址")
+	yapiToken                  = flag.String("yapi_token", "", "yapi 项目 token")
+	yapiMerge                  = flag.String("yapi_merge", "", "yapi merge [normal]-新增不覆盖 [good]-智能合并 [merge]-完全覆盖")
+	wrapCode                   = flag.Bool("wrap_code", false, "if set, generation one swagger file out of multiple protos")
 	mergeFileName              = flag.String("merge_file_name", "apidocs", "target swagger file name prefix after merge")
 	useJSONNamesForFields      = flag.Bool("json_names_for_fields", false, "if it sets Field.GetJsonName() will be used for generating swagger definitions, otherwise Field.GetName() will be used")
 	repeatedPathParamSeparator = flag.String("repeated_path_param_separator", "csv", "configures how repeated fields should be split. Allowed values are `csv`, `pipes`, `ssv` and `tsv`.")
@@ -45,7 +54,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	reg := descriptor.NewRegistry()
+	var reg = genswagger.NewRegistry()
 
 	glog.V(1).Info("Processing code generator request")
 	f := os.Stdin
@@ -61,15 +70,21 @@ func main() {
 	if err != nil {
 		glog.Fatal(err)
 	}
+
 	glog.V(1).Info("Parsed code generator request")
 	pkgMap := make(map[string]string)
 	if req.Parameter != nil {
 		err := parseReqParam(req.GetParameter(), flag.CommandLine, pkgMap)
 		if err != nil {
-			glog.Fatalf("Error parsing flags: %v", err)
+			glog.Fatalf("Error parsing flags: %v, %s", err, *req.Parameter)
 		}
 	}
 
+	reg.YAPISchema = *yapiSchema
+	reg.YAPIUrl = *yapiUrl
+	reg.YAPIToken = *yapiToken
+	reg.YAPIMerge = *yapiMerge
+	reg.SetWrapRespCode(*wrapCode)
 	reg.SetPrefix(*importPrefix)
 	reg.SetAllowDeleteBody(*allowDeleteBody)
 	reg.SetAllowMerge(*allowMerge)
@@ -121,6 +136,46 @@ func main() {
 		return
 	}
 	emitFiles(out)
+	sendYAPI(out, reg)
+}
+
+// 发送到 yapi
+func sendYAPI(out []*plugin.CodeGeneratorResponse_File, reg *genswagger.SRegistry) {
+	var (
+		schema = reg.YAPISchema
+		addr   = schema + "://" + reg.YAPIUrl + "/api/open/import_data"
+		token  = reg.YAPIToken
+		merge  = reg.YAPIMerge
+	)
+
+	if len(addr) == 0 || len(token) == 0 || len(merge) == 0 {
+		glog.Info("yapi_url:%s yapi_token:%s merge:%s", addr, token, merge)
+		return
+	}
+
+	for _, item := range out {
+		v := url.Values{}
+		v.Set("type", "swagger")
+		v.Set("token", token)
+		v.Set("merge", merge)
+		v.Set("json", *item.Content)
+
+		client := &http.Client{}
+		req, err := http.NewRequest("POST", addr, strings.NewReader(v.Encode()))
+		if err != nil {
+			glog.Error(err)
+		}
+
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		resp, err := client.Do(req)
+		if err != nil {
+			glog.Error(err)
+		}
+		defer resp.Body.Close()
+		data, _ := ioutil.ReadAll(resp.Body)
+		glog.Info(data)
+	}
+	glog.Info("upload yapi 成功")
 }
 
 func emitFiles(out []*plugin.CodeGeneratorResponse_File) {
@@ -159,6 +214,20 @@ func parseReqParam(param string, f *flag.FlagSet, pkgMap map[string]string) erro
 				continue
 			}
 			if spec[0] == "allow_merge" {
+				err := f.Set(spec[0], "true")
+				if err != nil {
+					return fmt.Errorf("Cannot set flag %s: %v", p, err)
+				}
+				continue
+			}
+			if spec[0] == "allow_save" {
+				err := f.Set(spec[0], "true")
+				if err != nil {
+					return fmt.Errorf("Cannot set flag %s: %v", p, err)
+				}
+				continue
+			}
+			if spec[0] == "wrap_code" {
 				err := f.Set(spec[0], "true")
 				if err != nil {
 					return fmt.Errorf("Cannot set flag %s: %v", p, err)

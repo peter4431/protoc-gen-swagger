@@ -15,7 +15,7 @@ import (
 	plugin "github.com/golang/protobuf/protoc-gen-go/plugin"
 	"github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway/descriptor"
 	gen "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway/generator"
-	swagger_options "github.com/scholar-ink/protoc-gen-swagger/options"
+	swagger_options "protoc-gen-swagger/options"
 )
 
 var (
@@ -23,7 +23,7 @@ var (
 )
 
 type generator struct {
-	reg *descriptor.Registry
+	reg *SRegistry
 }
 
 type wrapper struct {
@@ -32,7 +32,7 @@ type wrapper struct {
 }
 
 // New returns a new generator which generates grpc gateway files.
-func New(reg *descriptor.Registry) gen.Generator {
+func New(reg *SRegistry) gen.Generator {
 	return &generator{reg: reg}
 }
 
@@ -147,7 +147,7 @@ func (g *generator) Generate(targets []*descriptor.File) ([]*plugin.CodeGenerato
 }
 
 //AddStreamError Adds grpc.gateway.runtime.StreamError and google.protobuf.Any to registry for stream responses
-func AddStreamError(reg *descriptor.Registry) error {
+func AddStreamError(reg *SRegistry) error {
 	//load internal protos
 	//any := fileDescriptorProtoForMessage(&any.Any{})
 	//streamError := fileDescriptorProtoForMessage(&StreamError{})

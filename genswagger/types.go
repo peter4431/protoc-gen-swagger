@@ -9,7 +9,7 @@ import (
 
 type param struct {
 	*descriptor.File
-	reg *descriptor.Registry
+	reg *SRegistry
 }
 
 type binding struct {
