@@ -278,6 +278,8 @@ func updateFieldData(data *swaggerSchemaObject) {
 				switch n {
 				case "pattern":
 					data.Pattern = v
+				case "enum":
+					data.Enum = strings.Split(v, ",")
 				}
 			}
 		}
