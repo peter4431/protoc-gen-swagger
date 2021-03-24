@@ -883,7 +883,7 @@ func renderServices(services []*descriptor.Service, paths swaggerPathsObject, re
 							})
 							ps = append(ps, keyVal{
 								Key:   "body",
-								Value: map[string]string{"$ref": fmt.Sprintf("#/definitions/%s", fullyQualifiedNameToSwaggerName(meth.RequestType.FQMN(), reg))},
+								Value: map[string]string{"$ref": fmt.Sprintf("#/definitions/%s", fullyQualifiedNameToSwaggerName(meth.ResponseType.FQMN(), reg))},
 							})
 
 							responseSchema.Properties = &ps
